@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from timm.models.vision_transformer import PatchEmbed, Block
-from .modules.m3ae_utils import get_2d_sincos_pos_embed
+from .modules.mae_utils import get_2d_sincos_pos_embed
 
 class MaskedAutoencoderViT(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
@@ -234,10 +234,10 @@ class MaskedAutoencoderViT(nn.Module):
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask
 
-    def training_one_step(self, batch):
+    def training_one_step(self, batch, epoch):
         images = batch["image"]
         images = images.to(self.device)
 
         loss, pred, mask =  self(images)
 
-        return (loss,), (pred, mask)
+        return {'Loss': loss, 'Image Loss': loss}, (pred, mask)

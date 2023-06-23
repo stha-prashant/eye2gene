@@ -61,7 +61,7 @@ class ImageBaseDataset(Dataset):
 class KaggleOCTDatasetSingle(ImageBaseDataset):
     def __init__(self, config):
         super().__init__(config)
-        self.root_dir = config.data.image.root_dir
+        self.root_dir = config.root_dir
         self.labels = sorted(os.listdir(self.root_dir))
         self.label_map = {'CNV':0, 'DME':1, 'DRUSEN':2, 'NORMAL':3}
         data = []

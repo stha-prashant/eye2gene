@@ -2,8 +2,7 @@ import random
 import numpy as np
 import torch
 from tqdm import tqdm
-from sklearn.metrics import f1_score, roc_auc_score
-from models.mae_utils import merge_patches, mask_select
+from models.modules.mae_utils import merge_patches, mask_select
 
 
 def select_device(device, batch_size):

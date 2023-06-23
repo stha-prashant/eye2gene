@@ -6,10 +6,11 @@ n_epoch: 200
 log_freq: 10
 checkpoint_freq: 5
 phase: "pretraining"
+exp_name: 'MAE_kaggle_oct_single'
+architecture: 'mae'
 wandb:
   project: 'Eye2Gene'
-  username: 'prashantshrestha'
-  exp_name: 'MAE_kaggle_oct_single'
+  username: 'pstha'
 model:
   img_sz: 256
   patch_sz: 16
@@ -25,7 +26,8 @@ model:
 data:
   dataset: "kaggle_oct_single"
   split_ratio: 0.8
-  batch_size : 32
+  batch_size : 128
+  num_workers: 8
   train:
     im_size: 256
     transform_type: "train"
@@ -33,11 +35,11 @@ data:
   val:
     im_size: 256
     transform_type: "val"
-    cxr_json: "/raid/binod/prashant/eye2gene/OCT2017 /val"
+    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /val"
   test:
     im_size: 256
     transform_type: "test"
-    cxr_json: "/raid/binod/prashant/eye2gene/OCT2017 /test"
+    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /test"
 optimizer:
   name: "AdamW"
   weight_decay: 0.05

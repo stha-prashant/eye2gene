@@ -27,19 +27,19 @@ def build_models(config, cuda, gpus, vocab_size=None):
         
 def build_datasets(config):
     if config.data.dataset == 'kaggle_oct_single':
-        full_train_dataset = KaggleOCTDatasetSingle(config.data.train.root_dir)
-        split_ratio = config.train.split_ratio
+        full_train_dataset = KaggleOCTDatasetSingle(config.data.train)
+        split_ratio = config.data.split_ratio
         train_dataset, val_dataset = torch.utils.data.random_split(full_train_dataset, [int(split_ratio*len(full_train_dataset)), len(full_train_dataset) - int(split_ratio*len(full_train_dataset))])
-        test_dataset = KaggleOCTDatasetSingle(config.data.test.root_dir)
+        test_dataset = KaggleOCTDatasetSingle(config.data.test)
         return train_dataset, val_dataset, test_dataset
     raise NotImplementedError
 
 
 def build_data(config):
     train_dataset, val_dataset, test_dataset = build_datasets(config)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=config.data.batch_size)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=config.data.batch_size)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=config.data.batch_size)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers)
     return train_loader, val_loader, test_loader
     
 def build_optimizer(cfg, model):
@@ -52,18 +52,18 @@ def build_optimizer(cfg, model):
     # define optimizers
     if cfg.optimizer.name == "SGD":
         return torch.optim.SGD(
-            params, lr=cfg.lr, momentum=cfg.optimizer.momentum, weight_decay=cfg.optimizer.weight_decay
+            params, lr=cfg.optimizer.lr, momentum=cfg.optimizer.momentum, weight_decay=cfg.optimizer.weight_decay
         )
     elif cfg.optimizer.name == "Adam":
         return torch.optim.Adam(
             params,
-            lr=cfg.lr,
+            lr=cfg.optimizer.lr,
             weight_decay=cfg.optimizer.weight_decay,
             betas=(0.5, 0.999),
         )
     elif cfg.optimizer.name == "AdamW":
         return torch.optim.AdamW(
-            params, lr=cfg.lr, weight_decay=cfg.optimizer.weight_decay
+            params, lr=cfg.optimizer.lr, weight_decay=cfg.optimizer.weight_decay
         )
     
 

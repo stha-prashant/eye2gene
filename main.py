@@ -114,7 +114,7 @@ for epoch in range(configs.epoch, configs.n_epoch):
         }
         torch.save(ckpt, os.path.join(args.logdir, "models", "latest.pth"))
 
-    if epoch >= configs.model.lr_warmup_epochs and epoch % configs.log_freq == 0:
+    if epoch % configs.log_freq == 0:
         images = log_images(
             pred_fn(model, val_loader, configs.model.image.patch_size, epoch),
             2
