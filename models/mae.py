@@ -7,7 +7,7 @@ from .modules.mae_utils import get_2d_sincos_pos_embed
 class MaskedAutoencoderViT(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
     """
-    def __init__(self, configs, norm_layer=nn.LayerNorm, norm_pix_loss=False, device="cuda:0"):
+    def __init__(self, configs, norm_layer=nn.LayerNorm, norm_pix_loss=True, device="cuda:0"):
         super().__init__()
         self.init_configs(configs)
         self.device = device

@@ -116,7 +116,7 @@ for epoch in range(configs.epoch, configs.n_epoch):
 
     if epoch % configs.log_freq == 0:
         images = log_images(
-            pred_fn(model, val_loader, configs.model.image.patch_size, epoch),
+            pred_fn(model, val_loader, configs.model.patch_sz, epoch),
             2
         )
         wandb.log({

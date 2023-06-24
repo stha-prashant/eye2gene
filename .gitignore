@@ -1,3 +1,5 @@
 # copilot, add line to .gitignore to ignore pycache files
 **/__pycache__/*
 **/*_debug.py
+*log
+*wandb
