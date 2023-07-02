@@ -19,8 +19,9 @@ class ImageBaseDataset(Dataset):
         if config.transform_type == "train":
             self.transform = transforms.Compose(
                     [   
-                        transforms.CenterCrop(288),
-                        transforms.Resize((self.img_size, self.img_size), interpolation=transforms.InterpolationMode.BICUBIC),
+                        # transforms.CenterCrop(224),
+                        # transforms.Resize((self.img_size, self.img_size), interpolation=transforms.InterpolationMode.BICUBIC),
+                        transforms.RandomResizedCrop(self.img_size, scale=(0.5, 1.0)),
                         transforms.RandomHorizontalFlip(),
                         transforms.ToTensor(),
                         transforms.Normalize(mean=self.img_mean, std=self.img_std),

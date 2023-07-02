@@ -26,7 +26,7 @@ model:
 data:
   dataset: "kaggle_oct_single"
   split_ratio: 0.8
-  batch_size : 128
+  batch_size : 32
   num_workers: 8
   train:
     im_size: 256

@@ -15,7 +15,7 @@ parser.add_argument("--config", help="config file including parameters for model
 parser.add_argument("--gpus", type=str, help="gpu ids separated by comma")
 parser.add_argument("--resume", type=str, default="", const=True, nargs='?', help="path to checkpoint")
 parser.add_argument("--seed", type=int, default=2023, help="seeding for controlling randomization")
-
+parser.add_argument("--plot_tsne", action="store_true", help="plot tSNE of embeddings")
 
 args = parser.parse_args()
 
@@ -38,11 +38,15 @@ if args.resume:
         raise ValueError("Cannot find {}".format(args.resume))
     ckpt = torch.load(args.resume)
     model.load_state_dict(ckpt['model'])
-    optimizer = build_optimizer(configs, model)
-    optimizer.load_state_dict(ckpt['optimizer'])
-    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer=optimizer)
-    scheduler.load_state_dict(ckpt['scheduler'])
-    configs.epoch = ckpt['epoch']
+    
+    if not args.plot_tsne:
+        optimizer = build_optimizer(configs, model)
+        optimizer.load_state_dict(ckpt['optimizer'])
+        scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer=optimizer, 
+                        T_0=configs.lr_warmup_epochs,
+                        T_mult=configs.lr_mult)
+        scheduler.load_state_dict(ckpt['scheduler'])
+        configs.epoch = ckpt['epoch']
 else:
     optimizer = build_optimizer(configs, model)
     scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
@@ -53,6 +57,14 @@ else:
 
 if args.cuda:
     model = model.float().cuda(gpus[0])
+
+if args.plot_tsne:
+    from utils.train_utils import plot_tsne, plot_tsne_image
+    plot_tsne(model, val_loader, "val set, MAE features")
+    print("first done")
+    plot_tsne_image(model, val_loader, "val set, PCA on image")
+    exit(0)
+
 
 prev_time = time.time()
 runs = wandb.init(project=configs.wandb.project, entity=configs.wandb.username, name=configs.exp_name, reinit=True)
@@ -100,6 +112,8 @@ for epoch in range(configs.epoch, configs.n_epoch):
     if total_val_metric < best_loss:
         best_ckpt = {
             "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
             "epoch": epoch
         }
         torch.save(best_ckpt, os.path.join(args.logdir, "models", "best.pth"))
