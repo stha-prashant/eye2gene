@@ -1,0 +1,46 @@
+model_type: "MAE"
+lr_warmup_epochs: 40
+lr_mult: 1
+epoch: 0
+n_epoch: 500
+log_freq: 10
+checkpoint_freq: 5
+phase: "pretraining"
+exp_name: 'MAE_kaggle_oct_single'
+architecture: 'mae'
+wandb:
+  project: 'Eye2Gene'
+  username: 'pstha'
+model:
+  img_sz: 224
+  patch_sz: 16
+  in_chans: 3
+  emb_dim: 384
+  dec_emb_dim: 512
+  depth : 12
+  dec_depth : 2
+  num_heads : 6
+  dec_num_heads : 16
+  mlp_ratio : 4
+  mask_ratio : 0.90
+data:
+  dataset: "kaggle_oct_single"
+  split_ratio: 0.8
+  batch_size : 128
+  num_workers: 8
+  train:
+    im_size: 224
+    transform_type: "train"
+    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /train"
+  val:
+    im_size: 224
+    transform_type: "val"
+    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /val"
+  test:
+    im_size: 224
+    transform_type: "test"
+    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /test"
+optimizer:
+  name: "AdamW"
+  weight_decay: 0.05
+  lr : 1.0e-5

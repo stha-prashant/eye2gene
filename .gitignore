@@ -3,3 +3,4 @@
 **/*_debug.py
 *log
 *wandb
+output/*

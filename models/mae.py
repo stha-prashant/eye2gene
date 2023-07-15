@@ -227,7 +227,7 @@ class MaskedAutoencoderViT(nn.Module):
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
 
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
-        return loss
+        return loss, None, None
 
     def forward(self, imgs):
         latent, mask, ids_restore = self.forward_encoder(imgs, self.mask_ratio)
@@ -235,10 +235,21 @@ class MaskedAutoencoderViT(nn.Module):
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask
 
-    def training_one_step(self, batch, epoch):
+    def training_one_step(self, batch, epoch=None):
         images = batch["image"]
         images = images.to(self.device)
 
         loss, pred, mask =  self(images)
 
         return {'Loss': loss, 'Image Loss': loss}, (pred, mask)
+
+
+
+                # _, augmented_imgs, image_mask = self.mae_model(imgs)
+        # predicted_image_combined = merge_patches(
+        #             mask_select(mask=image_mask, this=self.mae_model.patchify(imgs), other=augmented_imgs), 16
+        #         )
+
+        # augmented_imgs = predicted_image_combined
+        # print(augmented_imgs.shape)
+        
