@@ -23,6 +23,7 @@ model:
   dec_num_heads : 16
   mlp_ratio : 4
   mask_ratio : 0.75
+
 data:
   dataset: "kaggle_oct_single"
   split_ratio: 0.8

@@ -4,7 +4,7 @@ from omegaconf import OmegaConf
 import argparse, os, time, datetime
 import torch
 from torch.optim import lr_scheduler
-
+from tqdm import tqdm
 from utils.train_utils import select_device, fix_seed, log_images, calculate_metrics_fromloader, pred_fn
 from utils.builder import build_data, build_models, build_optimizer
 
@@ -59,10 +59,10 @@ if args.cuda:
     model = model.float().cuda(gpus[0])
 
 if args.plot_tsne:
-    from utils.train_utils import plot_tsne, plot_tsne_image
-    plot_tsne(model, val_loader, "val set, MAE features")
+    from utils.train_utils import plot_tsne, plot_tsne_image, plot_tsne_real_fake
+    plot_tsne_real_fake(model, val_loader, configs, f"val set, {configs.model_type} features")
     print("first done")
-    plot_tsne_image(model, val_loader, "val set, PCA on image")
+    # plot_tsne_image(model, val_loader, configs, "val set, PCA on image")
     exit(0)
 
 
@@ -72,11 +72,14 @@ best_loss = float("inf")
 
 for epoch in range(configs.epoch, configs.n_epoch):
     model.train()
-    for i, batch in enumerate(train_loader):
+    for i, batch in tqdm(enumerate(train_loader)):
         optimizer.zero_grad()
-        loss, _ = model.training_one_step(batch, epoch)
-        loss["Loss"].backward()
-        optimizer.step()
+        loss, _ = model.training_one_step(batch)
+        loss_med = loss["Loss"][0]/40
+        loss_med.backward()
+        
+        if i%40 == 0:
+            optimizer.step()
 
         # Determine approximate time left
         batches_done = epoch * len(train_loader) + i
@@ -97,7 +100,20 @@ for epoch in range(configs.epoch, configs.n_epoch):
                     time_left,
                 )
             )
-            wandb.log(loss)
+            wandb.log({"Loss": loss["Loss"][0]})
+        else:
+            sys.stdout.write(
+                "\r[Epoch %d/%d] [Batch %d/%d] [loss: %f] ETA: %s"
+                % (
+                    epoch,
+                    configs.n_epoch,
+                    i,
+                    len(train_loader),
+                    loss["Loss"][0].item(),
+                    time_left,
+                )
+            )
+            wandb.log({"Loss": loss["Loss"][0], "positive similarity": loss["Loss"][1], "negative similarity": loss["Loss"][2]})
         
     scheduler.step()
     
@@ -107,6 +123,11 @@ for epoch in range(configs.epoch, configs.n_epoch):
         total_val_metric = val_mse
         wandb.log({
             "Val_image_mse": val_mse
+        })
+    else:
+        total_val_metric = val_mse
+        wandb.log({
+            "Val_contrastive_loss": val_mse
         })
 
     if total_val_metric < best_loss:
@@ -128,7 +149,7 @@ for epoch in range(configs.epoch, configs.n_epoch):
         }
         torch.save(ckpt, os.path.join(args.logdir, "models", "latest.pth"))
 
-    if epoch % configs.log_freq == 0:
+    if epoch % configs.log_freq == 0 and configs.model_type == "MAE":
         images = log_images(
             pred_fn(model, val_loader, configs.model.patch_sz, epoch),
             2

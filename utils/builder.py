@@ -1,9 +1,28 @@
 import models
 from torch.utils.data import DataLoader
 import torch
-from datasets import KaggleOCTDatasetSingle
+from datasets import KaggleOCTDatasetMultiple, KaggleOCTDatasetSingle, kaggle_oct_multiple_collate_fn
 
 def build_models(config, cuda, gpus, vocab_size=None):
+    if config.architecture == "simclr":
+        ckpt = config.model.augmented_pretrained_path
+        ckpt = torch.load(ckpt, map_location="cuda:" + str(gpus[0]))
+        mae_model = models.MODULES[config.model.augmented_generating_model.lower()](
+            config.model.pretrained_params,
+            device="cuda:" + str(gpus[0]) if cuda else "cpu"
+        )
+        mae_model.load_state_dict(ckpt['model'])
+        for p in mae_model.parameters():
+            p.requires_grad = False
+
+        model = models.MODULES[config.architecture](
+            configs=config.model, 
+            device="cuda:" + str(gpus[0]) if cuda else "cpu",
+            mae_model = mae_model
+        )
+
+        return model
+
     if config.phase == "pretraining":
         if config.model_type == "MAE":
             model = models.MODULES[config.architecture](
@@ -31,17 +50,44 @@ def build_datasets(config):
         split_ratio = config.data.split_ratio
         train_dataset, val_dataset = torch.utils.data.random_split(full_train_dataset, [int(split_ratio*len(full_train_dataset)), len(full_train_dataset) - int(split_ratio*len(full_train_dataset))])
         test_dataset = KaggleOCTDatasetSingle(config.data.test)
-        return train_dataset, val_dataset, test_dataset
+        return train_dataset, val_dataset, test_dataset, None
+    if config.data.dataset == 'kaggle_oct_multiple':
+        full_train_dataset = KaggleOCTDatasetMultiple(config.data.train)
+        split_ratio = config.data.split_ratio
+        train_dataset, val_dataset = torch.utils.data.random_split(full_train_dataset, [int(split_ratio*len(full_train_dataset)), len(full_train_dataset) - int(split_ratio*len(full_train_dataset))])
+        test_dataset = KaggleOCTDatasetMultiple(config.data.test)
+        return train_dataset, val_dataset, test_dataset, kaggle_oct_multiple_collate_fn
     raise NotImplementedError
 
 
 def build_data(config):
-    train_dataset, val_dataset, test_dataset = build_datasets(config)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers)
+    train_dataset, val_dataset, test_dataset, custom_collate_fn = build_datasets(config)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn)
     return train_loader, val_loader, test_loader
     
+def define_param_groups(model, weight_decay, optimizer_name):
+   def exclude_from_wd_and_adaptation(name):
+       if 'bn' in name:
+           return True
+       if optimizer_name == 'lars' and 'bias' in name:
+           return True
+
+   param_groups = [
+       {
+           'params': [p for name, p in model.named_parameters() if not exclude_from_wd_and_adaptation(name)],
+           'weight_decay': weight_decay,
+           'layer_adaptation': True,
+       },
+       {
+           'params': [p for name, p in model.named_parameters() if exclude_from_wd_and_adaptation(name)],
+           'weight_decay': 0.,
+           'layer_adaptation': False,
+       },
+   ]
+   return param_groups
+
 def build_optimizer(cfg, model):
     # get params for optimization
     params = []
@@ -62,6 +108,8 @@ def build_optimizer(cfg, model):
             betas=(0.5, 0.999),
         )
     elif cfg.optimizer.name == "AdamW":
+        if cfg.model_type == 'SimCLR':
+            params = define_param_groups(model, cfg.optimizer.weight_decay, cfg.optimizer.name)
         return torch.optim.AdamW(
             params, lr=cfg.optimizer.lr, weight_decay=cfg.optimizer.weight_decay
         )
