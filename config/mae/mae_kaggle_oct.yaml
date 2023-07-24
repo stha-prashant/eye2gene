@@ -32,15 +32,15 @@ data:
   train:
     im_size: 256
     transform_type: "train"
-    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /train"
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /train"
   val:
     im_size: 256
     transform_type: "val"
-    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /val"
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /val"
   test:
     im_size: 256
     transform_type: "test"
-    root_dir: "/raid/binod/prashant/eye2gene/OCT2017 /test"
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /test"
 optimizer:
   name: "AdamW"
   weight_decay: 0.05

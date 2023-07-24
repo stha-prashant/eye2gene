@@ -106,7 +106,7 @@
 # args = parser.parse_args()
 
 # configs = OmegaConf.load(args.config)
-# args.logdir = os.path.join("/raid/binod/prashant/eye2gene/logs", configs.exp_name)
+# args.logdir = os.path.join("/mnt/Enterprise/prashant/logs", configs.exp_name)
 # os.makedirs(args.logdir, exist_ok=True)
 # os.makedirs(os.path.join(args.logdir, "images"), exist_ok=True)
 # os.makedirs(os.path.join(args.logdir, "models"), exist_ok=True)
@@ -241,7 +241,7 @@ parser.add_argument('--random_search_it', type=int, default=20,
 
 
 args = parser.parse_args()
-args.logdir = os.path.join("/raid/binod/prashant/eye2gene/logs", "GMVAE_mnist_single")
+args.logdir = os.path.join("/mnt/Enterprise/prashant/logs", "GMVAE_mnist_single")
 os.makedirs(args.logdir, exist_ok=True)
 os.makedirs(os.path.join(args.logdir, "images"), exist_ok=True)
 os.makedirs(os.path.join(args.logdir, "models"), exist_ok=True)

@@ -1,0 +1,48 @@
+model_type: "instance_SimCLR"
+lr_warmup_epochs: 10
+lr_mult: 1
+epoch: 0
+n_epoch: 200
+log_freq: 10
+checkpoint_freq: 5
+grad_accum_steps: 1
+phase: "pretraining"
+
+exp_name: 'instance_SimCLR_kaggle_oct'
+architecture: 'instance_simclr'
+wandb:
+  project: 'Eye2Gene'
+  username: 'pstha'
+model:
+  temperature: 0.5
+  pretrained_params:
+    img_sz: 224
+  image:
+    proj_dim: 384
+
+
+data:
+  dataset: "kaggle_oct_single_contrastive"
+  split_ratio: 0.8
+  batch_size : 256
+  num_workers: 8
+  train_subset: 1.0
+  train:
+    im_size: 224
+    transform_type: "train"
+    per_patient_images: 16
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /train"
+  val:
+    im_size: 224
+    transform_type: "val"
+    per_patient_images: 10
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /val"
+  test:
+    im_size: 224
+    transform_type: "test"
+    per_patient_images: 10
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /test"
+optimizer:
+  name: "AdamW"
+  weight_decay: 0.05
+  lr : 1.0e-5

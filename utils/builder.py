@@ -1,7 +1,7 @@
 import models
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch
-from datasets import KaggleOCTDatasetMultiple, KaggleOCTDatasetSingle, kaggle_oct_multiple_collate_fn
+from datasets import KaggleOCTDatasetMultiple, KaggleOCTDatasetSingle, KaggleOCTDatasetSingleContrastive, kaggle_oct_multiple_collate_fn
 
 def build_models(config, cuda, gpus, vocab_size=None):
     if config.architecture == "simclr":
@@ -20,27 +20,37 @@ def build_models(config, cuda, gpus, vocab_size=None):
             device="cuda:" + str(gpus[0]) if cuda else "cpu",
             mae_model = mae_model
         )
-
         return model
+
 
     if config.phase == "pretraining":
-        if config.model_type == "MAE":
-            model = models.MODULES[config.architecture](
-                    configs=config.model, 
-                    device="cuda:" + str(gpus[0]) if cuda else "cpu"
-            )
+        model = models.MODULES[config.architecture](
+                configs=config.model, 
+                device="cuda:" + str(gpus[0]) if cuda else "cpu"
+        )
         return model
     if config.phase == "finetuning":
-        if config.model_type == "MAE":
-            base_model = models.MODULES[config.model.base_model.lower()](
-               config.model.pretrained_params,
-               device="cuda:" + str(gpus[0]) if cuda else "cpu"
-            )
+        base_model = models.MODULES[config.model.base_model.lower()](
+            config.model.pretrained_params,
+            device="cuda:" + str(gpus[0]) if cuda else "cpu"
+        )
         if config.model.pretrained_path is not None:
             ckpt = torch.load(config.model.pretrained_path, map_location="cuda:" + str(gpus[0]))
             base_model.load_state_dict(ckpt['model'])
             for p in base_model.parameters():
                 p.requires_grad = False
+        
+        if config.architecture == "classifier":
+            if config.model.pretrained_params.remove_proj_head:
+                base_encoder = base_model.encoder
+
+            model = models.MODULES[config.architecture](
+                configs=config.model, 
+                device="cuda:" + str(gpus[0]) if cuda else "cpu",
+                base_encoder = base_encoder
+            )
+
+            return model
         return base_model
     raise NotImplementedError    
         
@@ -50,6 +60,12 @@ def build_datasets(config):
         split_ratio = config.data.split_ratio
         train_dataset, val_dataset = torch.utils.data.random_split(full_train_dataset, [int(split_ratio*len(full_train_dataset)), len(full_train_dataset) - int(split_ratio*len(full_train_dataset))])
         test_dataset = KaggleOCTDatasetSingle(config.data.test)
+        return train_dataset, val_dataset, test_dataset, None
+    if config.data.dataset == 'kaggle_oct_single_contrastive':
+        full_train_dataset = KaggleOCTDatasetSingleContrastive(config.data.train)
+        split_ratio = config.data.split_ratio
+        train_dataset, val_dataset = torch.utils.data.random_split(full_train_dataset, [int(split_ratio*len(full_train_dataset)), len(full_train_dataset) - int(split_ratio*len(full_train_dataset))])
+        test_dataset = KaggleOCTDatasetSingleContrastive(config.data.test)
         return train_dataset, val_dataset, test_dataset, None
     if config.data.dataset == 'kaggle_oct_multiple':
         full_train_dataset = KaggleOCTDatasetMultiple(config.data.train)
@@ -62,9 +78,19 @@ def build_datasets(config):
 
 def build_data(config):
     train_dataset, val_dataset, test_dataset, custom_collate_fn = build_datasets(config)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn, shuffle=True)
+
+    try:
+        if config.data.train_subset:
+            ten_percent = int(config.data.train_subset * len(train_dataset))
+            train_subset = Subset(train_dataset, torch.randperm(len(train_dataset))[:ten_percent])
+            # Create a DataLoader for the train subset
+            train_loader = DataLoader(train_subset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn, shuffle=True)
+    except:
+        pass
+
+    val_loader = DataLoader(dataset=val_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn, shuffle=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=config.data.batch_size, num_workers=config.data.num_workers, collate_fn=custom_collate_fn, shuffle=True)
     return train_loader, val_loader, test_loader
     
 def define_param_groups(model, weight_decay, optimizer_name):
@@ -108,7 +134,7 @@ def build_optimizer(cfg, model):
             betas=(0.5, 0.999),
         )
     elif cfg.optimizer.name == "AdamW":
-        if cfg.model_type == 'SimCLR':
+        if cfg.model_type == 'SimCLR' or cfg.model_type == "instance_SimCLR":
             params = define_param_groups(model, cfg.optimizer.weight_decay, cfg.optimizer.name)
         return torch.optim.AdamW(
             params, lr=cfg.optimizer.lr, weight_decay=cfg.optimizer.weight_decay

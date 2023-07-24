@@ -20,7 +20,7 @@ parser.add_argument("--plot_tsne", action="store_true", help="plot tSNE of embed
 args = parser.parse_args()
 
 configs = OmegaConf.load(args.config)
-args.logdir = os.path.join("/raid/binod/prashant/eye2gene/logs", configs.exp_name)
+args.logdir = os.path.join("/mnt/Enterprise/prashant/logs", configs.exp_name)
 os.makedirs(args.logdir, exist_ok=True)
 os.makedirs(os.path.join(args.logdir, "images"), exist_ok=True)
 os.makedirs(os.path.join(args.logdir, "models"), exist_ok=True)
@@ -34,6 +34,7 @@ train_loader, val_loader, test_loader = build_data(configs)
 model = build_models(configs, args.cuda, gpus)
 
 if args.resume:
+    print("Loading checkpoint from {}...".format(args.resume))
     if not os.path.exists(args.resume):
         raise ValueError("Cannot find {}".format(args.resume))
     ckpt = torch.load(args.resume)
@@ -60,9 +61,10 @@ if args.cuda:
 
 if args.plot_tsne:
     from utils.train_utils import plot_tsne, plot_tsne_image, plot_tsne_real_fake
-    plot_tsne_real_fake(model, val_loader, configs, f"val set, {configs.model_type} features")
-    print("first done")
-    # plot_tsne_image(model, val_loader, configs, "val set, PCA on image")
+    # plot_tsne_real_fake(model, val_loader, configs, f"val set, {configs.model_type} features")
+    # print("first done")
+    # # plot_tsne_image(model, val_loader, configs, "val set, PCA on image")
+    plot_tsne(model, val_loader, configs, f"val set, {configs.model_type} features")
     exit(0)
 
 
@@ -75,10 +77,10 @@ for epoch in range(configs.epoch, configs.n_epoch):
     for i, batch in tqdm(enumerate(train_loader)):
         optimizer.zero_grad()
         loss, _ = model.training_one_step(batch)
-        loss_med = loss["Loss"][0]/40
+        loss_med = loss["Loss"][0]/configs.grad_accum_steps
         loss_med.backward()
         
-        if i%40 == 0:
+        if i%configs.grad_accum_steps == 0:
             optimizer.step()
 
         # Determine approximate time left

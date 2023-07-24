@@ -1,0 +1,49 @@
+model_type: "Classifer"
+lr_warmup_epochs: 10
+lr_mult: 1
+epoch: 0
+n_epoch: 200
+log_freq: 10
+checkpoint_freq: 5
+grad_accum_steps: 1
+phase: "pretraining"
+
+exp_name: 'classifer'
+architecture: 'classifier'
+wandb:
+  project: 'Eye2Gene'
+  username: 'pstha'
+model:
+  temperature: 0.5
+  num_classes: 4
+  encoder_output_dim: 2048
+  pretrained_params:
+    img_sz: 224
+  image:
+    proj_dim: 384
+
+
+data:
+  dataset: "kaggle_oct_single"
+  split_ratio: 0.8
+  batch_size : 64
+  num_workers: 8
+  train_subset: 0.1
+  train:
+    im_size: 224
+    transform_type: "train"
+    per_patient_images: 16
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /train"
+  val:
+    im_size: 224
+    transform_type: "val"
+    per_patient_images: 10
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /val"
+  test:
+    im_size: 224
+    transform_type: "test"
+    per_patient_images: 10
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /test"
+  name: "AdamW"
+  weight_decay: 0.05
+  lr : 1.0e-5

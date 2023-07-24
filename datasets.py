@@ -4,9 +4,51 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 import cv2
-
+import numpy as np
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
+
+
+class GaussianBlur(object):
+    """blur a single image on CPU"""
+    def __init__(self, kernel_size):
+        radias = kernel_size // 2
+        kernel_size = radias * 2 + 1
+        self.blur_h = torch.nn.Conv2d(3, 3, kernel_size=(kernel_size, 1),
+                                stride=1, padding=0, bias=False, groups=3)
+        self.blur_v = torch.nn.Conv2d(3, 3, kernel_size=(1, kernel_size),
+                                stride=1, padding=0, bias=False, groups=3)
+        self.k = kernel_size
+        self.r = radias
+
+        self.blur = torch.nn.Sequential(
+            torch.nn.ReflectionPad2d(radias),
+            self.blur_h,
+            self.blur_v
+        )
+
+        self.pil_to_tensor = transforms.ToTensor()
+        self.tensor_to_pil = transforms.ToPILImage()
+
+    def __call__(self, img):
+        img = self.pil_to_tensor(img).unsqueeze(0)
+
+        sigma = np.random.uniform(0.1, 2.0)
+        x = np.arange(-self.r, self.r + 1)
+        x = np.exp(-np.power(x, 2) / (2 * sigma * sigma))
+        x = x / x.sum()
+        x = torch.from_numpy(x).view(1, -1).repeat(3, 1)
+
+        self.blur_h.weight.data.copy_(x.view(3, 1, self.k, 1))
+        self.blur_v.weight.data.copy_(x.view(3, 1, 1, self.k))
+
+        with torch.no_grad():
+            img = self.blur(img)
+            img = img.squeeze()
+
+        img = self.tensor_to_pil(img)
+
+        return img
 
 class ImageBaseDataset(Dataset):
     def __init__(
@@ -70,6 +112,9 @@ class KaggleOCTDatasetSingle(ImageBaseDataset):
             base_path = os.path.join(self.root_dir, i)
             imgs = os.listdir(base_path)
             for img in imgs:
+                # if image is not png or jpg, skip
+                if img.split('.')[-1] not in ['png', 'jpg', 'jpeg']:
+                    continue
                 img_path = base_path + '/' + img
                 data.append(
                     {
@@ -84,7 +129,61 @@ class KaggleOCTDatasetSingle(ImageBaseDataset):
     
     def __getitem__(self, idx):
         input_dict = self.data[idx]
-        image = Image.open(input_dict["IMAGE"]).convert('L')
+        image = Image.open(input_dict["IMAGE"]).convert('RGB')
+        image = self.transform(image)
+        return {'image': image, 'label': input_dict["LABEL"]}
+
+class ContrastiveLearningViewGenerator(object):
+    """Take two random crops of one image as the query and key."""
+
+    def __init__(self, base_transform, n_views=2):
+        self.base_transform = base_transform
+        self.n_views = n_views
+
+    def __call__(self, x):
+        return [self.base_transform(x) for i in range(self.n_views)]
+
+class KaggleOCTDatasetSingleContrastive(ImageBaseDataset):
+    @staticmethod
+    def get_simclr_pipeline_transform(size, s=1):
+        """Return a set of data augmentation transformations as described in the SimCLR paper."""
+        color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)
+        data_transforms = transforms.Compose([transforms.RandomResizedCrop(size=size),
+                                              transforms.RandomHorizontalFlip(),
+                                              transforms.RandomApply([color_jitter], p=0.8),
+                                              transforms.RandomGrayscale(p=0.2),
+                                              GaussianBlur(kernel_size=int(0.1 * size)),
+                                              transforms.ToTensor()])
+        return data_transforms
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.root_dir = config.root_dir
+        self.labels = sorted(os.listdir(self.root_dir))
+        self.label_map = {'CNV':0, 'DME':1, 'DRUSEN':2, 'NORMAL':3}
+        data = []
+        for i in self.labels:
+            base_path = os.path.join(self.root_dir, i)
+            imgs = os.listdir(base_path)
+            for img in imgs:
+                img_path = base_path + '/' + img
+                data.append(
+                    {
+                        "IMAGE": img_path,
+                        "LABEL": self.label_map[i]
+                    }
+                )
+        self.data = data
+        self.transform = ContrastiveLearningViewGenerator(self.get_simclr_pipeline_transform(32),2)
+
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        input_dict = self.data[idx]
+        # print(input_dict)
+        # exit()
+        image = Image.open(input_dict["IMAGE"]).convert('RGB')
         image = self.transform(image)
         return {'image': image, 'label': input_dict["LABEL"]}
 

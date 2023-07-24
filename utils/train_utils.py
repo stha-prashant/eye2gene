@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans
 import pandas as pd
 import matplotlib.pyplot as plt
 import sklearn.metrics as metrics
+import os
 
 def select_device(device, batch_size):
     device = str(device).strip().lower()
@@ -77,10 +78,12 @@ def plot_tsne(model, data_loader, config, title=''):
     for batch in tqdm(data_loader):
         features = model.forward_representation(batch["image"].to(model.device))
         # features = features[:, 1, :] # get cls features only
-        if config.model_type == "MAE":
-            features = torch.mean(features, dim=1) # get avg pooled features
-        else:
-            features = features[1]
+        # if config.model_type == "MAE":
+        #     features = torch.mean(features, dim=1) # get avg pooled features
+        # elif config.model_type == "multimodal":
+        #     features = features
+        # else:
+        #     features = features[1]
 
 
         # perform pca to reduce to 50 dimensions
@@ -112,7 +115,7 @@ def plot_tsne(model, data_loader, config, title=''):
     dftsne = pd.DataFrame(tsne_embeddings)
     dftsne['cluster'] = pd.Series(X_labels)
     dftsne.columns = ['x1','x2','cluster']
-    
+    os.makedirs(f"output/{config.model_type}", exist_ok=True)
     dftsne_kmeans = dftsne.copy()
     dftsne_kmeans['cluster'] = kmeans_labels
     plt.figure(figsize=(10,6))

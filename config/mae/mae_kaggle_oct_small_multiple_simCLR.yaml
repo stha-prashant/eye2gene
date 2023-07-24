@@ -13,7 +13,7 @@ wandb:
   username: 'pstha'
 model:
   augmented_generating_model: "MAE"
-  augmented_pretrained_path: "/raid/binod/prashant/eye2gene/logs/MAE_kaggle_oct_single/models/best.pth"
+  augmented_pretrained_path: "/mnt/Enterprise/prashant/logs/MAE_kaggle_oct_single/models/best.pth"
   pass_through_separately: False
   temperature: 0.5
   pretrained_params:
@@ -41,17 +41,17 @@ data:
     im_size: 224
     transform_type: "train"
     per_patient_images: 16
-    root_dir: "/raid/binod/prashant/eye2gene/OCT-patientwise/train"
+    root_dir: "/mnt/Enterprise/prashant/OCT-patientwise/train"
   val:
     im_size: 224
     transform_type: "val"
     per_patient_images: 10
-    root_dir: "/raid/binod/prashant/eye2gene/OCT-patientwise/val"
+    root_dir: "/mnt/Enterprise/prashant/OCT-patientwise/val"
   test:
     im_size: 224
     transform_type: "test"
     per_patient_images: 10
-    root_dir: "/raid/binod/prashant/eye2gene/OCT-patientwise/test"
+    root_dir: "/mnt/Enterprise/prashant/OCT-patientwise/test"
 optimizer:
   name: "AdamW"
   weight_decay: 0.05

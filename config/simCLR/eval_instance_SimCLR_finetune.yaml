@@ -1,0 +1,54 @@
+model_type: "instance_SimCLR"
+lr_warmup_epochs: 10
+lr_mult: 1
+epoch: 0
+n_epoch: 200
+log_freq: 10
+checkpoint_freq: 5
+grad_accum_steps: 1
+phase: "finetuning"
+
+exp_name: 'eval_instance_SimCLR_finetune'
+architecture: 'classifier'
+wandb:
+  project: 'Eye2Gene'
+  username: 'pstha'
+model:
+  base_model: 'instance_simclr'
+  encoder_output_dim: 2048
+  num_classes: 4
+  pretrained_params:
+    remove_proj_head: True
+    img_sz: 224
+    temperature: 0.5
+    image:
+      proj_dim: 384
+
+  pretrained_path: "/mnt/Enterprise/prashant/logs/instance_SimCLR_kaggle_oct/models/latest.pth"
+  freeze_encoder: False
+
+data:
+  dataset: "kaggle_oct_single"
+  split_ratio: 0.8
+  batch_size : 64
+  num_workers: 8
+  train_subset: 0.1
+  train:
+    im_size: 224
+    transform_type: "train"
+    per_patient_images: 16
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /train"
+  val:
+    im_size: 224
+    transform_type: "val"
+    per_patient_images: 10
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /val"
+  test:
+    im_size: 224
+    transform_type: "test"
+    per_patient_images: 10
+    root_dir: "/mnt/Enterprise/prashant/OCT2017 /test"
+optimizer:
+  name: "AdamW"
+  weight_decay: 0.05
+  lr : 1.0e-5
